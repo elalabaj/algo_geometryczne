@@ -113,6 +113,73 @@ def compare(points: dict[str, np.ndarray], methods: dict[str, Callable],
 
     file.write_text('\n'.join(results), encoding='utf-8')
 
+from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy as np
+
+def save_plot_classified(data: np.ndarray, title: str, a: tuple[float, float], b: tuple[float, float], 
+                         epsilon: float, dtype, cross_func: Callable, output_dir: str = 'plots') -> None:
+    out_path = Path(output_dir)
+    out_path.mkdir(exist_ok=True)
+
+    data = data.astype(dtype)
+    
+    left, right, collinear = classify_points(data, a, b, epsilon, cross_func)
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
+    if len(collinear) > 0:
+        if len(collinear) < 100:
+            ax.scatter(collinear[:, 0], collinear[:, 1], s=2.5, c='black', alpha=1.0, label='Collinear')
+        else:
+            ax.scatter(collinear[:, 0], collinear[:, 1], s=0.5, c='black', alpha=0.5, label='Collinear')
+    if len(left) > 0:
+        ax.scatter(left[:, 0], left[:, 1], s=0.5, c='green', alpha=0.5, label='Left')
+    if len(right) > 0:
+        ax.scatter(right[:, 0], right[:, 1], s=0.5, c='red', alpha=0.5, label='Right')
+        
+    ax.set_title(title)
+    ax.set_aspect('equal')
+    #ax.set_box_aspect(1)
+    
+    fig.savefig(out_path / f'dataset_{title}_{epsilon}.png', dpi=300, bbox_inches='tight')
+    plt.close(fig)
+
+def save_individual_plots(points: dict[str, np.ndarray], a: tuple[float, float], b: tuple[float, float], 
+                            epsilon: float, cross_func: Callable, output_dir: str = 'plots') -> None:
+
+    out_path = Path(output_dir)
+    out_path.mkdir(exist_ok=True)
+    
+    for name, data in points.items():
+        left, right, collinear = classify_points(data, a, b, epsilon, cross_func)
+        
+        # --- 1. Zapis wykresu surowego ---
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.scatter(data[:, 0], data[:, 1], s=0.5, c='blue', alpha=0.5)
+        ax.set_title(f'Zbiór {name}')
+        ax.set_aspect('equal')
+        ax.set_box_aspect(1)
+        
+        fig.savefig(out_path / f'dataset_{name}_raw.png', dpi=500, bbox_inches='tight')
+        plt.close(fig)
+        
+        # --- 2. Zapis wykresu po klasyfikacji ---
+        fig, ax = plt.subplots(figsize=(6, 6))
+        if len(left) > 0:
+            ax.scatter(left[:, 0], left[:, 1], s=0.5, c='green', alpha=0.5, label='Left')
+        if len(right) > 0:
+            ax.scatter(right[:, 0], right[:, 1], s=0.5, c='red', alpha=0.5, label='Right')
+        if len(collinear) > 0:
+            ax.scatter(collinear[:, 0], collinear[:, 1], s=1.5, c='black', alpha=1.0, label='Collinear')
+            
+        ax.set_title(f'Zbiór {name} — klasyfikacja')
+        ax.set_aspect('equal')
+        ax.set_box_aspect(1)
+        
+        fig.savefig(out_path / f'dataset_{name}_classified.png', dpi=300, bbox_inches='tight')
+        plt.close(fig)
+
+
 def plot(points: dict[str, np.ndarray], a: tuple[float, float], b: tuple[float, float], cross_func: Callable, epsilon: float, save:bool, output_name:str=''):
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
 
@@ -143,4 +210,12 @@ if __name__ == '__main__':
     methods = {'3x3': cross3x3, '2x2': cross2x2, '3x3 numpy': cross3x3_numpy, '2x2 numpy': cross2x2_numpy}
     epsilons = [1e-6, 1e-9, 1e-12]
     #compare(points, methods, epsilons, 'results.txt', a, b)
-    plot(points, a, b, cross2x2, 1e-12, save=False, output_name='plots/2x2e-12.png')
+    #plot(points, a, b, cross2x2, 1e-12, save=False, output_name='plots/2x2e-12.png')
+    #plot_datasets(points)
+    #save_individual_plots(points, a, b, 1e-6, cross3x3, 'plots')
+    #save_plot_classified(points['b'], 'Zbiór b - klasyfikacja 2x2_numpy float64', a, b, 1e-6, np.float64, cross2x2_numpy);
+    #save_plot_classified(points['b'], 'Zbiór b - klasyfikacja 2x2_numpy float32', a, b, 1e-6, np.float32, cross2x2_numpy);
+    save_plot_classified(points['d'], 'Zbiór d - klasyfikacja 3x3 float64', a, b, 1e-12, np.float64, cross3x3)
+    save_plot_classified(points['d'], 'Zbiór d - klasyfikacja 2x2_numpy float64', a, b, 1e-12, np.float64, cross2x2_numpy)
+    save_plot_classified(points['d'], 'Zbiór d - klasyfikacja 3x3 float32', a, b, 1e-12, np.float32, cross3x3)
+    save_plot_classified(points['d'], 'Zbiór d - klasyfikacja 2x2_numpy float32', a, b, 1e-12, np.float32, cross2x2_numpy)
